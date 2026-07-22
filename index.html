@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Summer houses for sale — Frederikshavn to Skagen</title>
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="preconnect" href="https://tile.openstreetmap.org">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<style>
+  html, body { height:100%; margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; color:#18202a; }
+  #map { position:absolute; inset:0; background:#e9eef3; }
+  .panel {
+    position:absolute; z-index:1000; top:14px; left:14px; width:min(390px, calc(100vw - 28px));
+    max-height:calc(100vh - 28px); overflow:auto; background:rgba(255,255,255,.96);
+    border-radius:16px; box-shadow:0 12px 36px rgba(0,0,0,.22); backdrop-filter:blur(8px);
+  }
+  .panel-inner { padding:16px; }
+  h1 { font-size:20px; line-height:1.2; margin:0 0 6px; }
+  .sub { font-size:13px; color:#5a6673; margin-bottom:12px; }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:10px 0 12px; }
+  .stat { background:#f3f6f8; border-radius:10px; padding:9px; }
+  .stat b { display:block; font-size:17px; }
+  .stat span { font-size:11px; color:#66727f; }
+  .controls { display:grid; gap:8px; }
+  .row { display:flex; gap:7px; flex-wrap:wrap; }
+  button, select, input {
+    border:1px solid #d4dce3; background:white; border-radius:9px; padding:8px 10px;
+    font:inherit; font-size:13px;
+  }
+  button { cursor:pointer; }
+  button.active { background:#18202a; color:white; border-color:#18202a; }
+  input[type=search] { flex:1; min-width:170px; }
+  .legend { display:flex; gap:14px; align-items:center; margin-top:11px; font-size:12px; color:#5a6673; }
+  .dot { display:inline-block; width:11px; height:11px; border-radius:50%; margin-right:5px; vertical-align:-1px; }
+  .dot.house { background:#2369d8; }
+  .dot.plot { background:#e58b18; border-radius:2px; transform:rotate(45deg); }
+  #status { font-size:12px; color:#5c6875; margin-top:9px; }
+  .listing-count { font-weight:650; color:#18202a; }
+  .leaflet-popup-content { margin:13px 15px; min-width:250px; }
+  .popup-title { font-size:16px; font-weight:750; margin-bottom:3px; }
+  .badge { display:inline-block; font-size:11px; padding:3px 7px; border-radius:99px; background:#eef2f5; margin-bottom:8px; }
+  .price { font-size:18px; font-weight:800; margin:3px 0 8px; }
+  .facts { display:grid; grid-template-columns:1fr 1fr; gap:5px 14px; font-size:12px; margin:8px 0; }
+  .facts span { color:#65717e; }
+  .beach { font-size:12px; line-height:1.35; padding:8px 9px; background:#f3f7fa; border-radius:8px; margin:8px 0; }
+  .links { display:flex; gap:7px; margin-top:10px; }
+  .links a { text-decoration:none; font-size:12px; padding:7px 9px; border-radius:8px; background:#18202a; color:white; }
+  .links a.secondary { background:#edf1f4; color:#18202a; }
+  .house-marker, .plot-marker {
+    display:flex; align-items:center; justify-content:center; color:white; font-weight:800; font-size:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,.32); border:2px solid white;
+  }
+  .house-marker { width:26px; height:26px; background:#2369d8; border-radius:50% 50% 50% 0; transform:rotate(-45deg); }
+  .house-marker span { transform:rotate(45deg); }
+  .plot-marker { width:23px; height:23px; background:#e58b18; transform:rotate(45deg); border-radius:4px; }
+  .plot-marker span { transform:rotate(-45deg); }
+  .footer-note { font-size:11px; color:#74808c; margin-top:10px; line-height:1.35; }
+  @media (max-width:650px) {
+    .panel { top:8px; left:8px; width:calc(100vw - 16px); max-height:47vh; border-radius:13px; }
+    .panel-inner { padding:12px; }
+    h1 { font-size:17px; }
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="panel">
+  <div class="panel-inner">
+    <h1>Summer houses & plots: Frederikshavn–Skagen</h1>
+    <div class="sub">35 verified listings from the research snapshot of 18 July 2026. East-coast corridor prioritized.</div>
+    <div class="stats">
+      <div class="stat"><b id="shownCount">35</b><span>shown</span></div>
+      <div class="stat"><b>27</b><span>houses</span></div>
+      <div class="stat"><b>8</b><span>plots</span></div>
+    </div>
+    <div class="controls">
+      <div class="row" id="typeButtons">
+        <button class="active" data-type="All">All</button>
+        <button data-type="Summer house">Houses</button>
+        <button data-type="Land plot">Plots</button>
+      </div>
+      <div class="row">
+        <select id="priceFilter" aria-label="Price range">
+          <option value="all">All prices</option>
+          <option value="under1500">Under DKK 1.5m</option>
+          <option value="1500to3000">DKK 1.5m–3m</option>
+          <option value="over3000">Over DKK 3m</option>
+        </select>
+        <input id="search" type="search" placeholder="Search address or area…">
+      </div>
+      <div class="row">
+        <button id="fitBtn">Fit visible pins</button>
+        <button id="resetBtn">Reset filters</button>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="dot house"></i>Summer house</span>
+      <span><i class="dot plot"></i>Land plot</span>
+    </div>
+    <div id="status">Locating properties using Denmark’s official address register…</div>
+    <div class="footer-note">Pins are geocoded when the file opens. An internet connection is required for the map tiles, Leaflet and address lookup.</div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+const listings = [{"id": "H1", "type": "Summer house", "address": "Engsig Bækvej 36, 9981 Jerup", "area": "Bratten", "price": 2375000, "building_m2": 118, "plot_m2": 2781, "year": "2024/2025", "rooms": "4–5", "agent": "home Frederikshavn", "beach": "Bratten family-beach area; exact distance not stated", "url": "https://www.boligsiden.dk/adresse/engsig-baekvej-36-9981-jerup"}, {"id": "H2", "type": "Summer house", "address": "Tranebærvej 5, 9981 Jerup", "area": "Napstjert", "price": 1195000, "building_m2": 63, "plot_m2": 2500, "year": "1977", "rooms": "3", "agent": "EDC Poul Erik Bech", "beach": "Close to the beach; exact distance not stated", "url": "https://www.boligsiden.dk/adresse/tranebaervej-5-9981-jerup"}, {"id": "H3", "type": "Summer house", "address": "Blåbærvej 11, 9981 Jerup", "area": "Napstjert/Jerup", "price": 1695000, "building_m2": 81, "plot_m2": 2814, "year": "1974", "rooms": "4", "agent": "Nybolig Skagen", "beach": "Sandy east-coast beach belt nearby", "url": "https://www.boligsiden.dk/adresse/blaabaervej-11-9981-jerup"}, {"id": "H4", "type": "Summer house", "address": "Bugten 48, 9981 Jerup", "area": "Bratten", "price": 1395000, "building_m2": 76, "plot_m2": 3008, "year": "1972", "rooms": "3", "agent": "Nybolig Frederikshavn", "beach": "Beach access through local paths", "url": "https://www.boligsiden.dk/adresse/bugten-48-9981-jerup"}, {"id": "H5", "type": "Summer house", "address": "Brattenvej 63, 9981 Jerup", "area": "Bratten", "price": 3495000, "building_m2": 73, "plot_m2": 8500, "year": "1977", "rooms": "3", "agent": "home Frederikshavn", "beach": "Close to Bratten Strand", "url": "https://www.boligsiden.dk/adresse/brattenvej-63-9981-jerup"}, {"id": "H6", "type": "Summer house", "address": "Doppen 9, 9981 Jerup", "area": "Napstjert/Jerup", "price": 1595000, "building_m2": 107, "plot_m2": 2568, "year": "1967", "rooms": "4", "agent": "EDC Frederikshavn", "beach": "East-coast beach belt nearby", "url": "https://www.boligsiden.dk/adresse/doppen-9-9981-jerup"}, {"id": "H7", "type": "Summer house", "address": "Doppen 8, 9981 Jerup", "area": "Napstjert/Jerup", "price": 2395000, "building_m2": 126, "plot_m2": 2508, "year": "1987", "rooms": "5", "agent": "home Frederikshavn", "beach": "East-coast beach belt nearby", "url": "https://www.boligsiden.dk/adresse/doppen-8-9981-jerup"}, {"id": "H8", "type": "Summer house", "address": "Aaensvej 25, 9981 Jerup", "area": "Bratten", "price": 6495000, "building_m2": 286, "plot_m2": 2548, "year": "2019", "rooms": "8", "agent": "Nybolig Frederikshavn", "beach": "Bratten beach area", "url": "https://www.boligsiden.dk/adresse/aaensvej-25-9981-jerup"}, {"id": "H9", "type": "Summer house", "address": "Blåbærvej 5, 9981 Jerup", "area": "Napstjert", "price": 2395000, "building_m2": 110, "plot_m2": 2814, "year": "1972", "rooms": "4", "agent": "SkagenBolig", "beach": "Beach and nature nearby", "url": "https://www.boligsiden.dk/adresse/blaabaervej-5-9981-jerup"}, {"id": "H10", "type": "Summer house", "address": "Aaensvej 37, 9981 Jerup", "area": "Bratten", "price": 1695000, "building_m2": 91, "plot_m2": 2530, "year": "2010", "rooms": "4", "agent": "Nybolig Frederikshavn", "beach": "Bratten beach area", "url": "https://www.boligsiden.dk/adresse/aaensvej-37-9981-jerup"}, {"id": "H11", "type": "Summer house", "address": "Tranebærvej 2, 9981 Jerup", "area": "Napstjert", "price": 1295000, "building_m2": 121, "plot_m2": 2746, "year": "1977", "rooms": "4", "agent": "Nybolig Skagen", "beach": "Beach proximity stated by listing area", "url": "https://www.boligsiden.dk/adresse/tranebaervej-2-9981-jerup"}, {"id": "H12", "type": "Summer house", "address": "Aaensvej 39, 9981 Jerup", "area": "Bratten", "price": 1895000, "building_m2": 98, "plot_m2": 2635, "year": "2022", "rooms": "4", "agent": "EDC Frederikshavn", "beach": "Approximately 800 m to child-friendly beach and bathing bridge", "url": "https://www.boligsiden.dk/adresse/aaensvej-39-9981-jerup"}, {"id": "H13", "type": "Summer house", "address": "Perlevej 2, 9982 Ålbæk", "area": "Klitlund/Ålbæk", "price": 1895000, "building_m2": 81, "plot_m2": 1781, "year": "2004", "rooms": "4", "agent": "SkagenBolig", "beach": "Dune-path access to the beach", "url": "https://www.boligsiden.dk/adresse/perlevej-2-9982-aalbaek"}, {"id": "H14", "type": "Summer house", "address": "Gråandevej 2A, 9982 Ålbæk", "area": "Klitlund", "price": 3395000, "building_m2": 142, "plot_m2": 2510, "year": "2005", "rooms": "6", "agent": "SkagenBolig", "beach": "Easy beach access from the natural plot", "url": "https://www.boligsiden.dk/adresse/graaandevej-2a-9982-aalbaek"}, {"id": "H15", "type": "Summer house", "address": "Gråandevej 3, 9982 Ålbæk", "area": "Klitlund", "price": 3495000, "building_m2": 82, "plot_m2": 2655, "year": "1971", "rooms": "4", "agent": "EDC Poul Erik Bech", "beach": "A few hundred metres from a broad sandy beach", "url": "https://www.boligsiden.dk/adresse/graaandevej-3-9982-aalbaek"}, {"id": "H16", "type": "Summer house", "address": "Apollonvej 10, 9982 Ålbæk", "area": "Skiveren/Ålbæk", "price": 1795000, "building_m2": 74, "plot_m2": 4801, "year": "1976", "rooms": "4", "agent": "EDC Poul Erik Bech", "beach": "Public beach access via dune paths", "url": "https://www.boligsiden.dk/adresse/apollonvej-10-9982-aalbaek"}, {"id": "H17", "type": "Summer house", "address": "Solbærvej 14, 9982 Ålbæk", "area": "Knasborg", "price": 1550000, "building_m2": 70, "plot_m2": 891, "year": "1983", "rooms": "3", "agent": "Nybolig Skagen", "beach": "Close to sea, dunes and nature", "url": "https://www.boligsiden.dk/adresse/solbaervej-14-9982-aalbaek"}, {"id": "H18", "type": "Summer house", "address": "Knasen 4, 9982 Ålbæk", "area": "Knasborg", "price": 1595000, "building_m2": 63, "plot_m2": 865, "year": "1960", "rooms": "3", "agent": "SkagenBolig", "beach": "East-coast beach belt nearby", "url": "https://www.boligsiden.dk/adresse/knasen-4-9982-aalbaek"}, {"id": "H19", "type": "Summer house", "address": "Arielvej 1, 9982 Ålbæk", "area": "Skiveren", "price": 2975000, "building_m2": 128, "plot_m2": 4482, "year": "1975", "rooms": "7", "agent": "EDC Poul Erik Bech", "beach": "Beach and dune landscape nearby", "url": "https://www.boligsiden.dk/adresse/arielvej-1-9982-aalbaek"}, {"id": "H20", "type": "Summer house", "address": "Musvågevej 87, 9982 Ålbæk", "area": "Lodskovvad", "price": 1695000, "building_m2": 102, "plot_m2": 1240, "year": "2008", "rooms": "5", "agent": "SkagenBolig", "beach": "Coastal holiday-house belt", "url": "https://www.boligsiden.dk/adresse/musvaagevej-87-9982-aalbaek"}, {"id": "H21", "type": "Summer house", "address": "Tranebærvej 12, 9982 Ålbæk", "area": "Ålbæk", "price": 2095000, "building_m2": 121, "plot_m2": 2463, "year": "1981", "rooms": "4", "agent": "SKAGEN Mægleren", "beach": "East-coast beach belt nearby", "url": "https://www.boligsiden.dk/adresse/tranebaervej-12-9982-aalbaek"}, {"id": "H22", "type": "Summer house", "address": "Solbærvej 2, 9982 Ålbæk", "area": "Knasborg", "price": 1395000, "building_m2": 77, "plot_m2": 1141, "year": "1997", "rooms": "4", "agent": "home Skagen", "beach": "East-coast beach belt nearby", "url": "https://www.boligsiden.dk/adresse/solbaervej-2-9982-aalbaek"}, {"id": "H23", "type": "Summer house", "address": "Solbærvej 8, 9982 Ålbæk", "area": "Knasborg", "price": 1095000, "building_m2": 50, "plot_m2": 1247, "year": "1982", "rooms": "3", "agent": "SKAGEN Mægleren", "beach": "East-coast beach belt nearby", "url": "https://www.boligsiden.dk/adresse/solbaervej-8-9982-aalbaek"}, {"id": "H24", "type": "Summer house", "address": "Gepardvej 5, 9982 Ålbæk", "area": "Skiveren/Ålbæk", "price": 1245000, "building_m2": 74, "plot_m2": 5131, "year": "1972", "rooms": "5", "agent": "Nybolig Skagen", "beach": "Coastal holiday-house belt", "url": "https://www.boligsiden.dk/adresse/gepardvej-5-9982-aalbaek"}, {"id": "H25", "type": "Summer house", "address": "Ildervej 7, 9982 Ålbæk", "area": "Bunken", "price": 1195000, "building_m2": 66, "plot_m2": 1251, "year": "1986", "rooms": "3", "agent": "SKAGEN Mægleren", "beach": "Kattegat beaches nearby", "url": "https://www.boligsiden.dk/adresse/ildervej-7-9982-aalbaek"}, {"id": "H26", "type": "Summer house", "address": "Uranusvej 8, 9982 Ålbæk", "area": "Skiveren", "price": 2495000, "building_m2": 118, "plot_m2": 3045, "year": "1977", "rooms": "4", "agent": "EDC Poul Erik Bech", "beach": "Beach and nature nearby", "url": "https://www.boligsiden.dk/adresse/uranusvej-8-9982-aalbaek"}, {"id": "H27", "type": "Summer house", "address": "Gl. Kirkevej 38, 9982 Ålbæk", "area": "Ålbæk", "price": 2450000, "building_m2": 88, "plot_m2": 4979, "year": "2006", "rooms": "4", "agent": "danbolig Hjørring", "beach": "East-coast beach belt nearby", "url": "https://www.boligsiden.dk/adresse/gl.-kirkevej-38-9982-aalbaek"}, {"id": "P1", "type": "Land plot", "address": "Gyvelvej 12, 9981 Jerup", "area": "Jerup", "price": 80000, "building_m2": 0, "plot_m2": 889, "year": "", "rooms": "", "agent": "BRIKK", "beach": "Village setting inland from the coast", "url": "https://www.boligsiden.dk/adresse/gyvelvej-12-9981-jerup"}, {"id": "P2", "type": "Land plot", "address": "Gyvelvej 19, 9981 Jerup", "area": "Jerup", "price": 49000, "building_m2": 0, "plot_m2": 787, "year": "", "rooms": "", "agent": "John Frandsen Frederikshavn", "beach": "Village setting inland from the coast; no building obligation stated", "url": "https://www.boligsiden.dk/adresse/gyvelvej-19-9981-jerup"}, {"id": "P3", "type": "Land plot", "address": "Sdr. Havnevej 12, 9982 Ålbæk", "area": "Ålbæk town", "price": 350000, "building_m2": 0, "plot_m2": 598, "year": "", "rooms": "", "agent": "SKAGEN Mægleren", "beach": "About 800 m to Ålbæk harbour and beach", "url": "https://www.boligsiden.dk/adresse/sdr.-havnevej-12-9982-aalbaek"}, {"id": "P4", "type": "Land plot", "address": "Hvideklitvænget 1, 9982 Ålbæk", "area": "Bunken", "price": 895000, "building_m2": 0, "plot_m2": 2528, "year": "", "rooms": "", "agent": "SkagenBolig", "beach": "Coastal holiday zone with broad beach nearby", "url": "https://www.boligsiden.dk/adresse/hvideklitvaenget-1-9982-aalbaek"}, {"id": "P5", "type": "Land plot", "address": "Musvågevej 180, 9982 Ålbæk", "area": "Lodskovvad", "price": 225000, "building_m2": 0, "plot_m2": 858, "year": "", "rooms": "", "agent": "EDC Frederikshavn", "beach": "Coastal holiday-house belt", "url": "https://www.boligsiden.dk/adresse/musvaagevej-180-9982-aalbaek"}, {"id": "P6", "type": "Land plot", "address": "Grævlingevej 2, 9982 Ålbæk", "area": "Lodskovvad/Ålbæk", "price": 395000, "building_m2": 0, "plot_m2": 4133, "year": "", "rooms": "", "agent": "EDC Frederikshavn", "beach": "Coastal holiday-house belt", "url": "https://www.boligsiden.dk/adresse/graevlingevej-2-9982-aalbaek"}, {"id": "P7", "type": "Land plot", "address": "Oksevej 77, 9982 Ålbæk", "area": "Bunken", "price": 325000, "building_m2": 0, "plot_m2": 1264, "year": "", "rooms": "", "agent": "EDC Poul Erik Bech", "beach": "Broad beach nearby", "url": "https://www.boligsiden.dk/adresse/oksevej-77-9982-aalbaek"}, {"id": "P8", "type": "Land plot", "address": "Oksevej 40, 9982 Ålbæk", "area": "Bunken", "price": 325000, "building_m2": 0, "plot_m2": 1280, "year": "", "rooms": "", "agent": "Hedegaard Madsen A/S Tversted", "beach": "Broad beach nearby", "url": "https://www.boligsiden.dk/adresse/oksevej-40-9982-aalbaek"}];
+const map = L.map('map', { zoomControl:true }).setView([57.53, 10.47], 10);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom:19,
+  attribution:'&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+const clusters = L.markerClusterGroup({ showCoverageOnHover:false, maxClusterRadius:42 });
+map.addLayer(clusters);
+const markerRecords = [];
+let activeType = 'All';
+
+function fmtPrice(v) {
+  return new Intl.NumberFormat('da-DK').format(v) + ' kr.';
+}
+function markerIcon(item) {
+  const cls = item.type === 'Land plot' ? 'plot-marker' : 'house-marker';
+  return L.divIcon({
+    className:'',
+    html:`<div class="${cls}"><span>${item.id}</span></div>`,
+    iconSize:item.type === 'Land plot' ? [27,27] : [30,30],
+    iconAnchor:item.type === 'Land plot' ? [13,13] : [15,28],
+    popupAnchor:[0,-24]
+  });
+}
+function popupHtml(item) {
+  const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(item.address);
+  return `
+    <div class="popup-title">${item.address}</div>
+    <div class="badge">${item.id} · ${item.type} · ${item.area}</div>
+    <div class="price">${fmtPrice(item.price)}</div>
+    <div class="facts">
+      <div><span>Building</span><br><b>${item.building_m2 ? item.building_m2 + ' m²' : '—'}</b></div>
+      <div><span>Plot</span><br><b>${item.plot_m2.toLocaleString('da-DK')} m²</b></div>
+      <div><span>Rooms</span><br><b>${item.rooms || '—'}</b></div>
+      <div><span>Year</span><br><b>${item.year || '—'}</b></div>
+      <div style="grid-column:1 / -1"><span>Agent</span><br><b>${item.agent}</b></div>
+    </div>
+    <div class="beach">🌊 ${item.beach}</div>
+    <div class="links">
+      <a href="${item.url}" target="_blank" rel="noopener">Open listing</a>
+      <a class="secondary" href="${mapsUrl}" target="_blank" rel="noopener">Google Maps</a>
+    </div>`;
+}
+function parseCoordinates(result) {
+  if (!result) return null;
+  const x = result.x ?? result.adgangsadresse?.x ?? result.data?.x;
+  const y = result.y ?? result.adgangsadresse?.y ?? result.data?.y;
+  if (Number.isFinite(Number(x)) && Number.isFinite(Number(y))) return [Number(y), Number(x)];
+  const coords = result.adgangsadresse?.adgangspunkt?.koordinater || result.adgangspunkt?.koordinater;
+  if (Array.isArray(coords) && coords.length >= 2) return [Number(coords[1]), Number(coords[0])];
+  return null;
+}
+async function geocode(item) {
+  const cacheKey = 'dawa:' + item.address;
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch(e) {}
+  const q = encodeURIComponent(item.address);
+  const urls = [
+    `https://api.dataforsyningen.dk/adresser?q=${q}&struktur=mini`,
+    `https://api.dataforsyningen.dk/autocomplete?q=${q}&type=adresse`
+  ];
+  for (const url of urls) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) continue;
+      const data = await response.json();
+      const candidates = Array.isArray(data) ? data : [];
+      for (const candidate of candidates) {
+        const coords = parseCoordinates(candidate);
+        if (coords) {
+          try { localStorage.setItem(cacheKey, JSON.stringify(coords)); } catch(e) {}
+          return coords;
+        }
+      }
+    } catch(e) {}
+  }
+  return null;
+}
+function passes(item) {
+  const pf = document.getElementById('priceFilter').value;
+  const text = document.getElementById('search').value.trim().toLowerCase();
+  if (activeType !== 'All' && item.type !== activeType) return false;
+  if (pf === 'under1500' && item.price >= 1500000) return false;
+  if (pf === '1500to3000' && (item.price < 1500000 || item.price > 3000000)) return false;
+  if (pf === 'over3000' && item.price <= 3000000) return false;
+  if (text && !(item.address + ' ' + item.area + ' ' + item.id).toLowerCase().includes(text)) return false;
+  return true;
+}
+function applyFilters(fit=false) {
+  clusters.clearLayers();
+  const visible = [];
+  markerRecords.forEach(rec => {
+    if (passes(rec.item)) {
+      clusters.addLayer(rec.marker);
+      visible.push(rec.marker);
+    }
+  });
+  document.getElementById('shownCount').textContent = visible.length;
+  if (fit && visible.length) {
+    const group = L.featureGroup(visible);
+    map.fitBounds(group.getBounds().pad(0.13), {maxZoom:15});
+  }
+}
+async function buildMap() {
+  let located = 0, failed = 0;
+  const status = document.getElementById('status');
+  for (let i=0; i<listings.length; i++) {
+    const item = listings[i];
+    status.innerHTML = `Locating <span class="listing-count">${i+1}/${listings.length}</span>: ${item.address}`;
+    const coords = await geocode(item);
+    if (coords) {
+      const marker = L.marker(coords, {icon:markerIcon(item), title:item.address});
+      marker.bindPopup(popupHtml(item), {maxWidth:340});
+      markerRecords.push({item, marker});
+      clusters.addLayer(marker);
+      located++;
+    } else {
+      failed++;
+    }
+  }
+  if (markerRecords.length) {
+    map.fitBounds(L.featureGroup(markerRecords.map(r => r.marker)).getBounds().pad(0.12), {maxZoom:14});
+  }
+  status.innerHTML = failed
+    ? `Mapped <span class="listing-count">${located}</span> properties; ${failed} address lookup(s) failed. Their listing links remain in the companion CSV.`
+    : `All <span class="listing-count">${located}</span> properties mapped successfully.`;
+}
+
+document.querySelectorAll('#typeButtons button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#typeButtons button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeType = btn.dataset.type;
+    applyFilters(true);
+  });
+});
+document.getElementById('priceFilter').addEventListener('change', () => applyFilters(true));
+document.getElementById('search').addEventListener('input', () => applyFilters(false));
+document.getElementById('fitBtn').addEventListener('click', () => applyFilters(true));
+document.getElementById('resetBtn').addEventListener('click', () => {
+  activeType='All';
+  document.querySelectorAll('#typeButtons button').forEach(b => b.classList.toggle('active', b.dataset.type === 'All'));
+  document.getElementById('priceFilter').value='all';
+  document.getElementById('search').value='';
+  applyFilters(true);
+});
+
+buildMap();
+</script>
+</body>
+</html>
