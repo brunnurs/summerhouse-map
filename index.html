@@ -58,10 +58,26 @@
   .plot-marker { width:23px; height:23px; background:#e58b18; transform:rotate(45deg); border-radius:4px; }
   .plot-marker span { transform:rotate(-45deg); }
   .footer-note { font-size:11px; color:#74808c; margin-top:10px; line-height:1.35; }
+  #togglePanel { display:none; }
+  .panel-head { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
   @media (max-width:650px) {
-    .panel { top:8px; left:8px; width:calc(100vw - 16px); max-height:47vh; border-radius:13px; }
-    .panel-inner { padding:12px; }
-    h1 { font-size:17px; }
+    .panel { top:8px; left:8px; width:calc(100vw - 16px); max-height:80vh; border-radius:13px; }
+    .panel-inner { padding:10px 12px; }
+    h1 { font-size:15px; }
+    .sub { font-size:11px; margin-bottom:7px; }
+    .stats { margin:6px 0 8px; gap:6px; }
+    .stat { padding:6px 8px; }
+    .stat b { font-size:14px; }
+    .stat span { font-size:10px; }
+    button, select, input { padding:6px 9px; font-size:12px; }
+    input[type=search] { min-width:110px; }
+    #togglePanel { display:inline-block; flex:none; white-space:nowrap; }
+    .panel:not(.expanded) .controls,
+    .panel:not(.expanded) .legend,
+    .panel:not(.expanded) #status,
+    .panel:not(.expanded) .footer-note { display:none; }
+    .legend { margin-top:8px; }
+    .footer-note { font-size:10px; }
   }
 </style>
 </head>
@@ -69,7 +85,10 @@
 <div id="map"></div>
 <div class="panel">
   <div class="panel-inner">
-    <h1>Summer houses & plots: Frederikshavn–Skagen</h1>
+    <div class="panel-head">
+      <h1>Summer houses & plots: Frederikshavn–Skagen</h1>
+      <button id="togglePanel" aria-expanded="false">Filters</button>
+    </div>
     <div class="sub">133 listings verified live on Boligsiden, 22 July 2026. Full Frederikshavn–Skagen corridor, east coast prioritized — now incl. Hulsig, Kandestederne, Gl. Skagen and Skagen town east side.</div>
     <div class="stats">
       <div class="stat"><b id="shownCount">133</b><span>shown</span></div>
@@ -2157,6 +2176,14 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   document.getElementById('priceFilter').value='all';
   document.getElementById('search').value='';
   applyFilters(true);
+});
+
+const togglePanelBtn = document.getElementById('togglePanel');
+const panelEl = document.querySelector('.panel');
+togglePanelBtn.addEventListener('click', () => {
+  const open = panelEl.classList.toggle('expanded');
+  togglePanelBtn.textContent = open ? 'Hide filters' : 'Filters';
+  togglePanelBtn.setAttribute('aria-expanded', String(open));
 });
 
 buildMap();
